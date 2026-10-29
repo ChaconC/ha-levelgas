@@ -1,0 +1,20 @@
+{
+  "title": "Levelgas",
+  "config": {
+    "step": {
+      "user": {"title": "Connect Levelgas", "description": "Sign in with the email and password used in the Levelgas app.", "data": {"email": "Email", "password": "Password"}},
+      "tank": {"title": "Select your tank", "data": {"tank_hash": "Tank"}},
+      "reauth_confirm": {"title": "Reconnect Levelgas", "description": "Enter credentials for an account with access to this tank.", "data": {"email": "Email", "password": "Password"}}
+    },
+    "error": {"invalid_auth": "The account credentials were rejected.", "cannot_connect": "Unable to reach Levelgas. Try again later.", "wrong_account": "This account does not have access to the configured tank."},
+    "abort": {"already_configured": "This tank is already configured.", "no_tanks": "No tanks were found in this account.", "reauth_successful": "Levelgas has been reconnected."}
+  },
+  "options": {
+    "step": {"init": {"title": "Reading and smoothing options", "description": "The median uses distinct sensor readings, not polling attempts. Larger windows suppress more noise but delay changes after a refill. Set the timezone used by the Levelgas app for this tank.", "data": {"poll_hours": "Poll interval (hours)", "smoothing_samples": "Median window (odd number of readings)", "timezone": "Sensor timestamp timezone"}}},
+    "error": {"invalid_window": "Choose an odd number from 3 to 31.", "invalid_timezone": "Enter a valid IANA timezone, such as America/Mexico_City."}
+  },
+  "entity": {"sensor": {
+    "tank_level": {"name": "Tank level"}, "battery": {"name": "Battery"},
+    "last_reading": {"name": "Last reading"}, "tank_level_smoothed": {"name": "Tank level smoothed"}
+  }}
+}
