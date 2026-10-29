@@ -1,0 +1,26 @@
+name: Release package
+on:
+  release:
+    types: [published]
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --python 3.14
+      - run: uv run pytest -q
+      - run: uv run python scripts/validate.py
+      - name: Check release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          uv run python -c 'import json, os; assert json.load(open("custom_components/levelgas/manifest.json"))["version"] == os.environ["RELEASE_TAG"]'
+      - run: uv run python scripts/package.py
+      - name: Attach installation archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" dist/levelgas.zip --clobber
