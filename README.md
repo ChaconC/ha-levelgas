@@ -2,9 +2,17 @@
 
 <img src="custom_components/levelgas/brand/icon.png" alt="Levelgas integration tank icon" width="96">
 
-Native integration for Levelgas tank monitors. Connect with your Levelgas email
-and password, select a tank, and get four sensors in **Settings → Devices & services**.
-The phone is only needed for the original device setup. No MQTT broker or add-on is required.
+Monitor your Levelgas tanks in Home Assistant.
+
+- Tank level, battery percentage, and last reading timestamp.
+- Smoothed tank level using a rolling median to reduce isolated sensor spikes.
+- Configurable polling, smoothing window, and sensor timezone.
+- History and long-term statistics for tank levels.
+- Persistent smoothing across restarts and integration updates.
+- Credentials and sessions stored in Home Assistant's configuration storage; no added telemetry.
+- Automatic session renewal and a Home Assistant repair when credentials are rejected.
+
+<img src="docs/assets/sensors.png" alt="Home Assistant sensors showing tank level, smoothed tank level, last reading, and battery" width="428">
 
 | Sensor | Value |
 | --- | --- |
@@ -17,27 +25,33 @@ The phone is only needed for the original device setup. No MQTT broker or add-on
 
 Requires **Home Assistant 2026.10 or later** and an email/password Levelgas account.
 
-1. Add `https://github.com/ChaconC/ha-levelgas` as a **custom repository**, type **Integration**.
-   On HA 2026.11+, use **Settings → Marketplace**. On HA 2026.10, use **HACS → ⋮ → Custom repositories**.
-2. Install **Levelgas** and restart Home Assistant if requested.
-3. Open **Settings → Devices & services → Add integration → Levelgas**.
-4. Enter your Levelgas credentials. If the account has several tanks, select one.
-   Repeat setup to add another tank.
+[![Open Levelgas in HACS or Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ChaconC&repository=ha-levelgas&category=integration)
 
-[Open the Levelgas setup flow](https://my.home-assistant.io/redirect/config_flow_start/?domain=levelgas)
+- Open the repository using the button above, add it when prompted, and install **Levelgas**.
+- Restart Home Assistant if requested.
+- Use the button below to add the integration, enter your Levelgas credentials, and select a tank.
+- Repeat setup to add another tank.
 
-The GitHub repository must be published publicly before the custom-repository URL
-works. Catalog submission is separate and is not required for custom repositories.
+[![Set up Levelgas in Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=levelgas)
+
+Alternatively, add `https://github.com/ChaconC/ha-levelgas` as a custom repository
+with type **Integration** under **HACS → ⋮ → Custom repositories** or
+**Settings → Marketplace** (HA 2026.11+). After installation, open
+**Settings → Devices & services → Add integration → Levelgas**.
 
 ### Manual installation
 
-Extract the release's `levelgas.zip` **into** `/config/custom_components/levelgas/`,
-so `manifest.json` is directly inside that directory. Restart HA and add the integration.
+- Download `levelgas.zip` from the [latest release](https://github.com/ChaconC/ha-levelgas/releases/latest).
+- Extract it into `/config/custom_components/levelgas/`, with `manifest.json` directly inside that directory.
+- Restart Home Assistant and add the integration.
 
 ## Polling and the smoothed curve
 
-The default poll interval is **two hours**. Configure the interval (1–24 hours),
-median window (odd number, 3–31), and sensor timezone in the integration's options.
+Configure the integration's options under **Settings → Devices & services**:
+
+- **Polling interval:** 1–24 hours; defaults to two hours.
+- **Median window:** an odd number from 3–31; defaults to five distinct readings.
+- **Sensor timezone:** defaults to `America/Mexico_City`.
 
 Levelgas's API supplies recent history, which initializes the median immediately.
 Only distinct sensor timestamps count as samples. Polling the same reading twelve
@@ -74,24 +88,22 @@ configurable and defaults to `America/Mexico_City`. Set it to the timezone used 
 the Levelgas app for your tank, rather than assuming it is UTC.
 
 API failures mark sensors unavailable. Invalid or missing percentages never become
-zero. Expired sessions are renewed once; rejected credentials start HA's
-reauthentication flow. An unchanged sensor timestamp is retained, even when a
+zero. Expired sessions are renewed once. If credentials are rejected, open
+**Settings → System → Repairs** and sign in again to resume updates.
+An unchanged sensor timestamp is retained, even when a
 poll succeeds, so old sensor data is visible as old.
 
-## Privacy and support
+## Support
 
-This is an independent community integration, not an official Levelgas product.
-It uses the HTTPS API observed in Levelgas Android 9.4.1; backend changes may need
-an integration update. The shared app identifier in source is not an account
-credential. Your account credentials and session stay in HA's configuration
-storage. Protect HA backups accordingly. No telemetry is added.
+This is an unofficial community integration. Changes to the Levelgas API may
+break functionality and require an integration update.
 
-The integration icon is an original generic tank illustration, not the manufacturer's logo.
 See [development and publishing](CONTRIBUTING.md), [release notes](CHANGELOG.md),
 and [license](LICENSE).
 
-## Remove
+## Uninstall
 
-Remove the Levelgas entry under Devices & services first; this also removes its
-private smoothing buffer. Then uninstall the repository in Marketplace/HACS and
-restart HA if requested. Recorder history follows HA's normal retention policy.
+- Delete each Levelgas entry under **Settings → Devices & services**. This also deletes its stored smoothing buffer.
+- Uninstall **Levelgas** in Marketplace or HACS.
+- Restart Home Assistant if requested.
+- Existing Recorder history follows Home Assistant's normal retention policy.
