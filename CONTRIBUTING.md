@@ -40,33 +40,19 @@ the branch up to date before merging. These requirements also apply to repositor
 administrators. Approving reviews are optional; force pushes and branch deletion
 are disabled.
 
-## Repository metadata
-
-HACS requires a repository description, relevant topics, and enabled issues.
-A repository administrator can configure these for `ChaconC/ha-levelgas`:
-
-```sh
-gh repo edit ChaconC/ha-levelgas --enable-issues \
-  --description 'Native Home Assistant integration for Levelgas tank monitors' \
-  --add-topic home-assistant --add-topic hacs --add-topic integration --add-topic levelgas
-```
-
-Wait for all four [PR checks](#pull-request-checks) to pass in Actions. HACS
-checks involving GitHub description, topics, issues and public visibility can only
-run against the published repository. If HACS reports missing topics or a missing
-description, update these settings rather than disabling those checks.
-
 ## Release
 
 Update the version in `manifest.json` and `pyproject.toml`, and add release notes
-to `CHANGELOG.md`. Keep the tag version equal to the manifest version.
+to `CHANGELOG.md` and `docs/releases/`. Run `uv lock` to update the project version
+in the lockfile. Merge the release PR after all required checks pass, then tag
+the merged commit. Keep the tag version equal to the manifest version.
 
 ```sh
 uv run pytest -q
 uv run python scripts/validate.py
-git tag 1.0.0
-git push origin 1.0.0
-gh release create 1.0.0 --title '1.0.0' --notes-file docs/releases/1.0.0.md
+git tag 1.0.1
+git push origin 1.0.1
+gh release create 1.0.1 --title '1.0.1' --notes-file docs/releases/1.0.1.md
 ```
 
 The release workflow tests the code, builds `levelgas.zip`, and attaches it to the
