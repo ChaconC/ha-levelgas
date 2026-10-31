@@ -3,38 +3,58 @@
 Use Python 3.14.2+ and [uv](https://docs.astral.sh/uv/):
 
 ```sh
-uv sync --frozen
-uv run pytest -q
-uv run ruff check custom_components tests scripts
-uv run ruff format --check custom_components tests scripts
-uv run python scripts/validate.py
-uv run python scripts/package.py
+uv sync --locked --python 3.14
+uv run --frozen pytest -q
+uv run --frozen ruff check custom_components tests scripts
+uv run --frozen ruff format --check custom_components tests scripts
+uv run --frozen python scripts/validate.py
+uv run --frozen python scripts/package.py
 ```
 
 Tests run against Home Assistant 2026.10.4. API tests use a loopback HTTP server;
 HA lifecycle/config-flow tests mock the external Levelgas service. Tests require
-no real account. Never put credentials, APKs, captured responses or `.storage`
-files in tests, issues, commits, or release assets.
+no real account.
 
 Use Conventional Commits, for example `fix: preserve filter history on restart`.
 Include a failing regression test before changing data or lifecycle behavior.
 
-## Publish the prepared repository
+## Pull request checks
 
-The local repository and manifest are prepared for `ChaconC/ha-levelgas`.
-These commands create a public repository and publish it; they are not run by tests:
+The [Validate workflow](.github/workflows/validate.yaml) runs on every pull request,
+push, and manual dispatch. New commits cancel older validation runs for the same
+PR or branch. Each job has a 15-minute timeout.
+
+| Check | Validates |
+| --- | --- |
+| Lint and formatting | Ruff lint rules and Python formatting |
+| Tests | pytest suite, integration metadata and translations, and installation ZIP build |
+| HACS validation | HACS integration and repository requirements |
+| hassfest | Home Assistant integration requirements |
+
+Both Python jobs use `uv sync --locked` so a stale or missing lockfile fails CI.
+When changing dependencies, run `uv lock` and commit `uv.lock` alongside
+`pyproject.toml`. Subsequent commands use `--frozen` to avoid changing the lockfile.
+
+The `main` branch requires pull requests and all four checks listed above, with
+the branch up to date before merging. These requirements also apply to repository
+administrators. Approving reviews are optional; force pushes and branch deletion
+are disabled.
+
+## Repository metadata
+
+HACS requires a repository description, relevant topics, and enabled issues.
+A repository administrator can configure these for `ChaconC/ha-levelgas`:
 
 ```sh
-gh repo create ChaconC/ha-levelgas --public --source=. --remote=origin \
-  --description 'Native Home Assistant integration for Levelgas tank monitors' --push
 gh repo edit ChaconC/ha-levelgas --enable-issues \
+  --description 'Native Home Assistant integration for Levelgas tank monitors' \
   --add-topic home-assistant --add-topic hacs --add-topic integration --add-topic levelgas
 ```
 
-Wait for **Tests**, **HACS validation**, and **hassfest** to pass in Actions. HACS
+Wait for all four [PR checks](#pull-request-checks) to pass in Actions. HACS
 checks involving GitHub description, topics, issues and public visibility can only
-run against the published repository. Check the repository URL in README and
-manifest if you choose a different name.
+run against the published repository. If HACS reports missing topics or a missing
+description, update these settings rather than disabling those checks.
 
 ## Release
 
