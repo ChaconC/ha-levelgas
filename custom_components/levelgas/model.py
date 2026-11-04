@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 from statistics import median
-from zoneinfo import ZoneInfo
 
 
 def percent(value):
@@ -12,18 +11,18 @@ def percent(value):
     return value
 
 
-def sensor_time(value, zone):
+def sensor_time(value, tzinfo):
     if not isinstance(value, str):
         raise ValueError("Missing sensor time")
-    result = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo(zone))
-    if result.astimezone(timezone.utc).astimezone(ZoneInfo(zone)).replace(
+    result = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tzinfo)
+    if result.astimezone(timezone.utc).astimezone(tzinfo).replace(tzinfo=None) != result.replace(
         tzinfo=None
-    ) != result.replace(tzinfo=None):
+    ):
         raise ValueError("Nonexistent local sensor time")
     return result
 
 
-def normalize_tank(tank, zone):
+def normalize_tank(tank, tzinfo):
     if not isinstance(tank, dict) or tank.get("status") != 1:
         raise ValueError("Tank is not active")
     for field in ("tankHash", "tankName"):
@@ -34,24 +33,24 @@ def normalize_tank(tank, zone):
         "tank_name": tank["tankName"],
         "tank_level": percent(tank.get("gasLevel")),
         "battery": percent(tank.get("batteryLevel")),
-        "last_reading": sensor_time(tank.get("lastUpdateInfo"), zone),
+        "last_reading": sensor_time(tank.get("lastUpdateInfo"), tzinfo),
     }
 
 
 class Smoother:
     """Rolling median of unique timestamps, with a bounded persistent history."""
 
-    def __init__(self, count, zone, saved=None):
+    def __init__(self, count, tzinfo, saved=None):
         if type(count) is not int or count < 3 or count > 31 or count % 2 != 1:
             raise ValueError("Smoothing window must be an odd integer from 3 to 31")
-        ZoneInfo(zone)
         self.count = count
-        self.zone = zone
+        self.tzinfo = tzinfo
+        self.zone = tzinfo.key
         self.tank_hash = None
         self.samples = {}
         if (
             isinstance(saved, dict)
-            and saved.get("timezone") == zone
+            and saved.get("timezone") == self.zone
             and isinstance(saved.get("tank_hash"), str)
         ):
             self.tank_hash = saved["tank_hash"]
@@ -70,7 +69,7 @@ class Smoother:
         newest = current["last_reading"]
         for point in history if isinstance(history, list) else []:
             try:
-                date = sensor_time(point["date"], self.zone)
+                date = sensor_time(point["date"], self.tzinfo)
                 level = percent(point["reading"])
                 if date <= newest:
                     self.samples[date] = level

@@ -7,6 +7,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import ApiError, AuthError, LevelgasClient
 from .const import DEFAULT_POLL_HOURS, DEFAULT_SMOOTHING_SAMPLES, DEFAULT_TIMEZONE, DOMAIN
@@ -37,18 +38,20 @@ class LevelgasCoordinator(DataUpdateCoordinator):
         self.saved_history = None
 
     async def _async_setup(self):
+        self.tzinfo = await dt_util.async_get_time_zone(self.zone)
+        if self.tzinfo is None:
+            raise UpdateFailed("Invalid Levelgas sensor timezone")
         self.saved_history = await self.store.async_load()
-        self.smoother = await self.hass.async_add_executor_job(
-            Smoother,
+        self.smoother = Smoother(
             self.entry.options.get("smoothing_samples", DEFAULT_SMOOTHING_SAMPLES),
-            self.zone,
+            self.tzinfo,
             self.saved_history,
         )
 
     async def _async_update_data(self):
         try:
             tank = await self.client.tank(self.entry.data["tank_hash"])
-            reading = normalize_tank(tank, self.zone)
+            reading = normalize_tank(tank, self.tzinfo)
             reading.update(self.smoother.update(reading, tank.get("levelHistory")))
         except AuthError as error:
             raise ConfigEntryAuthFailed("Levelgas credentials were rejected") from error
