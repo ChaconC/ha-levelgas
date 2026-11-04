@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 (2026-11-04)
+
+- Declare Mexico as the supported country for HACS and Marketplace catalog submission.
+
 ## 1.0.1 (2026-10-31)
 
 First public release.

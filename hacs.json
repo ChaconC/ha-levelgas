@@ -1,4 +1,5 @@
 {
   "name": "Levelgas",
+  "country": ["MX"],
   "homeassistant": "2026.10.0"
 }
