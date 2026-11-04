@@ -1,4 +1,6 @@
+from threading import get_ident
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo, _common
 
 import pytest
 from homeassistant import config_entries
@@ -27,6 +29,59 @@ DATA = {
     "tank_name": "Tepepan",
     "session": {"userHash": "u", "token": "t"},
 }
+
+
+@pytest.mark.parametrize(
+    ("zone", "expected_time"),
+    [
+        ("America/Mexico_City", "2026-10-29T00:01:24+00:00"),
+        ("America/New_York", "2026-10-28T22:01:24+00:00"),
+    ],
+)
+async def test_polling_never_loads_timezone_data_on_event_loop(hass, zone, expected_time):
+    """A cold/evicted timezone cache must not make a poll read zone data on the loop."""
+    entry = MockConfigEntry(
+        domain="levelgas", data=DATA, unique_id="abc", options={"timezone": zone}
+    )
+    entry.add_to_hass(hass)
+    loop_thread = get_ident()
+    load_data = _common.load_data
+
+    def checked_load_data(file):
+        assert get_ident() != loop_thread, "Timezone data loaded on the event loop"
+        return load_data(file)
+
+    async def tank_with_cold_timezone_cache(*args):
+        ZoneInfo.clear_cache(only_keys=[zone])
+        return TANK
+
+    ZoneInfo.clear_cache(only_keys=[zone])
+    with (
+        patch("zoneinfo._common.load_data", side_effect=checked_load_data),
+        patch(
+            "custom_components.levelgas.coordinator.LevelgasClient.tank",
+            new=tank_with_cold_timezone_cache,
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        await entry.runtime_data.async_refresh()
+        await hass.async_block_till_done()
+        registry = er.async_get(hass)
+        last_reading = registry.async_get_entity_id("sensor", "levelgas", "abc_last_reading")
+        smoothed = registry.async_get_entity_id("sensor", "levelgas", "abc_tank_level_smoothed")
+        assert hass.states.get(last_reading).state == expected_time
+        assert float(hass.states.get(smoothed).state) == 70
+        assert entry.runtime_data.smoother.snapshot()["timezone"] == zone
+
+
+async def test_invalid_configured_timezone_retries_setup(hass):
+    entry = MockConfigEntry(
+        domain="levelgas", data=DATA, unique_id="abc", options={"timezone": "Invalid/Zone"}
+    )
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is config_entries.ConfigEntryState.SETUP_RETRY
 
 
 @pytest.mark.parametrize("during_setup", [True, False])

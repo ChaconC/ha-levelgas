@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3 (2026-11-04)
+
+- Resolve the sensor timezone asynchronously during setup and reuse it for readings and smoothing, avoiding timezone database reads on Home Assistant's event loop.
+- Preserve existing smoothing history and timezone-change reseeding behavior.
+
 ## 1.0.2 (2026-11-04)
 
 - Declare Mexico as the supported country for HACS and Marketplace catalog submission.
