@@ -101,3 +101,28 @@ def test_timezone_change_reseeds_history_without_duplicate_measurements():
     result = changed.update(normalize_tank(tank(28, 40), NEW_YORK_TZ), history)
     assert result["tank_level_smoothed"] == 60
     assert len(changed.snapshot()["samples"]) == 5
+
+
+def test_stale_poll_preserves_newer_samples_across_restart():
+    smoother = Smoother(3, MEXICO_TZ)
+    for day in range(1, 32):
+        smoother.update(normalize_tank(tank(day, day), MEXICO_TZ))
+    saved = smoother.snapshot()
+    stale = normalize_tank({**tank(value=90), "lastUpdateInfo": "2026-09-30 18:01:24"}, MEXICO_TZ)
+    assert smoother.update(stale)["tank_level_smoothed"] == 90
+    assert smoother.snapshot() == saved
+    restored = Smoother(3, MEXICO_TZ, smoother.snapshot())
+    latest = restored.update(normalize_tank(tank(31, 31), MEXICO_TZ))
+    assert latest["tank_level_smoothed"] == 30
+
+
+def test_restart_deduplicates_legacy_sample_in_repeated_dst_hour():
+    zone = ZoneInfo("America/Tijuana")
+    reading = normalize_tank({**tank(), "lastUpdateInfo": "2026-11-01 01:20:00"}, zone)
+    date = "2026-11-01T01:20:00-07:00"
+    saved = {"timezone": zone.key, "tank_hash": "abc", "samples": [{"date": date, "level": 60}]}
+    smoother = Smoother(5, zone, saved)
+    result = smoother.update(reading)
+    assert result["smoothing_sample_count"] == 1
+    assert result["tank_level_smoothed"] == reading["tank_level"]
+    assert result["smoothing_window_start"] == date

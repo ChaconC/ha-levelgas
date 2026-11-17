@@ -58,7 +58,7 @@ class Smoother:
                 try:
                     date = datetime.fromisoformat(point["date"])
                     if date.tzinfo is not None:
-                        self.samples[date] = percent(point["level"])
+                        self.samples[date.astimezone(timezone.utc)] = percent(point["level"])
                 except KeyError, TypeError, ValueError:
                     continue
 
@@ -66,23 +66,24 @@ class Smoother:
         if current["tank_hash"] != self.tank_hash:
             self.samples = {}
             self.tank_hash = current["tank_hash"]
-        newest = current["last_reading"]
+        newest = current["last_reading"].astimezone(timezone.utc)
         for point in history if isinstance(history, list) else []:
             try:
-                date = sensor_time(point["date"], self.tzinfo)
+                date = sensor_time(point["date"], self.tzinfo).astimezone(timezone.utc)
                 level = percent(point["reading"])
                 if date <= newest:
                     self.samples[date] = level
             except KeyError, TypeError, ValueError:
                 continue
         self.samples[newest] = current["tank_level"]
-        dates = sorted(d for d in self.samples if d <= newest)[-31:]
-        self.samples = {d: self.samples[d] for d in dates}
-        window = dates[-self.count :]
+        points = sorted(self.samples.items())
+        # Report the median as of this reading, even when the API replays an older poll.
+        window = [point for point in points if point[0] <= newest][-self.count :]
+        self.samples = dict(points[-31:])
         return {
-            "tank_level_smoothed": float(median(self.samples[d] for d in window)),
+            "tank_level_smoothed": float(median(level for _, level in window)),
             "smoothing_sample_count": len(window),
-            "smoothing_window_start": window[0].isoformat(),
+            "smoothing_window_start": window[0][0].astimezone(self.tzinfo).isoformat(),
         }
 
     def snapshot(self):
@@ -90,6 +91,7 @@ class Smoother:
             "tank_hash": self.tank_hash,
             "timezone": self.zone,
             "samples": [
-                {"date": d.isoformat(), "level": v} for d, v in sorted(self.samples.items())
+                {"date": d.astimezone(self.tzinfo).isoformat(), "level": v}
+                for d, v in sorted(self.samples.items())
             ],
         }

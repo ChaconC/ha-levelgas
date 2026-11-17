@@ -39,12 +39,13 @@ class LevelgasConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             try:
                 await self.client.login()
-                self.tanks = await self.client.tanks()
+                tanks = await self.client.tanks()
             except AuthError:
                 errors["base"] = "invalid_auth"
             except ApiError:
                 errors["base"] = "cannot_connect"
             else:
+                self.tanks = [tank for tank in tanks if tank.get("status", 1) == 1]
                 if not self.tanks:
                     return self.async_abort(reason="no_tanks")
                 if len(self.tanks) == 1:
@@ -127,10 +128,14 @@ class LevelgasOptionsFlow(config_entries.OptionsFlow):
             count = user_input["smoothing_samples"]
             if type(count) is not int or count < 3 or count > 31 or count % 2 != 1:
                 errors["base"] = "invalid_window"
-            elif await dt_util.async_get_time_zone(user_input["timezone"]) is None:
-                errors["base"] = "invalid_timezone"
             else:
-                return self.async_create_entry(title="", data=user_input)
+                try:
+                    zone = await dt_util.async_get_time_zone(user_input["timezone"])
+                except ValueError:
+                    zone = None
+                if zone is not None:
+                    return self.async_create_entry(title="", data=user_input)
+                errors["base"] = "invalid_timezone"
         options = self.config_entry.options
         return self.async_show_form(
             step_id="init",
