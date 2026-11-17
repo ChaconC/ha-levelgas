@@ -319,11 +319,12 @@ async def test_setup_excludes_inactive_tanks(hass, active):
             assert result["reason"] == "no_tanks"
 
 
-async def test_options_recover_from_malformed_timezone(hass):
+@pytest.mark.parametrize("zone", ["America/Mexico_City/", "x" * 300])
+async def test_options_recover_from_malformed_timezone(hass, zone):
     entry = MockConfigEntry(domain="levelgas", data=DATA, unique_id="abc")
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    options = {"poll_hours": 2, "smoothing_samples": 5, "timezone": "America/Mexico_City/"}
+    options = {"poll_hours": 2, "smoothing_samples": 5, "timezone": zone}
     result = await hass.config_entries.options.async_configure(result["flow_id"], options)
     assert result["errors"]["base"] == "invalid_timezone"
     result = await hass.config_entries.options.async_configure(

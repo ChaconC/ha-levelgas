@@ -131,7 +131,7 @@ class LevelgasOptionsFlow(config_entries.OptionsFlow):
             else:
                 try:
                     zone = await dt_util.async_get_time_zone(user_input["timezone"])
-                except ValueError:
+                except OSError, ValueError:
                     zone = None
                 if zone is not None:
                     return self.async_create_entry(title="", data=user_input)
