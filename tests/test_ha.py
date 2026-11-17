@@ -289,3 +289,45 @@ async def test_reauth_requires_access_to_same_tank(hass):
             result["flow_id"], {"email": "e", "password": "p"}
         )
         assert result["reason"] == "reauth_successful"
+
+
+@pytest.mark.parametrize(
+    "active", [None, {"tankHash": "active"}, {"tankHash": "active", "status": 1}]
+)
+async def test_setup_excludes_inactive_tanks(hass, active):
+    tanks = [{"tankHash": "inactive", "status": 0}]
+    if active:
+        tanks.append(active)
+    with (
+        patch("custom_components.levelgas.config_flow.LevelgasClient.login", new=AsyncMock()),
+        patch(
+            "custom_components.levelgas.config_flow.LevelgasClient.tanks",
+            new=AsyncMock(return_value=tanks),
+        ),
+        patch("custom_components.levelgas.async_setup_entry", return_value=True),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            "levelgas",
+            context={"source": config_entries.SOURCE_USER},
+            data={"email": "e", "password": "p"},
+        )
+        if active:
+            assert result["type"] == "create_entry"
+            assert result["data"]["tank_hash"] == "active"
+        else:
+            assert result["type"] == "abort"
+            assert result["reason"] == "no_tanks"
+
+
+@pytest.mark.parametrize("zone", ["America/Mexico_City/", "x" * 300])
+async def test_options_recover_from_malformed_timezone(hass, zone):
+    entry = MockConfigEntry(domain="levelgas", data=DATA, unique_id="abc")
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    options = {"poll_hours": 2, "smoothing_samples": 5, "timezone": zone}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], options)
+    assert result["errors"]["base"] == "invalid_timezone"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**options, "timezone": "America/Mexico_City"}
+    )
+    assert result["type"] == "create_entry"

@@ -80,3 +80,28 @@ async def test_http_200_api_failure_is_not_success(api_server):
         client = LevelgasClient(session, "u", "p", {"userHash": "u", "token": "t"})
         with pytest.raises(ApiError):
             await client.tanks()
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        ({"httpCode": 429}, ApiError),
+        ({"httpCode": "503"}, ApiError),
+        ({"apiError": 123}, ApiError),
+        ({"httpCode": 200, "message": {}}, ApiError),
+        ({"httpCode": 401}, AuthError),
+        ({"httpCode": 403}, AuthError),
+    ],
+)
+async def test_classify_login_failures_during_session_renewal(api_server, payload, expected):
+    async def handle(request):
+        if request.path == "/users/login":
+            return web.json_response(payload)
+        return web.Response(status=401)
+
+    await api_server(handle)
+    async with aiohttp.ClientSession() as session:
+        client = LevelgasClient(session, "u", "p", {"userHash": "u", "token": "expired"})
+        with pytest.raises(ApiError) as caught:
+            await client.tank("abc")
+        assert type(caught.value) is expected

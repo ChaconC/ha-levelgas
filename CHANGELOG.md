@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 (2026-11-17)
+
+- Retry temporary login failures and malformed service responses during session renewal. Explicit authentication rejections still open a Home Assistant repair.
+- Preserve newer smoothing samples when Levelgas replays an older reading, and deduplicate readings restored during the daylight-saving fallback.
+- Skip inactive tanks during setup and show a validation error for malformed timezone names in options.
+
 ## 1.0.3 (2026-11-04)
 
 - Resolve the sensor timezone asynchronously during setup and reuse it for readings and smoothing, avoiding timezone database reads on Home Assistant's event loop.

@@ -59,8 +59,6 @@ class LevelgasClient:
         if data.get("httpCode") in (401, 403):
             raise AuthError("Account session rejected")
         if data.get("apiError") not in (None, 0) or data.get("httpCode", 200) != 200:
-            if path == "users/login" and data.get("httpCode", 200) < 500:
-                raise AuthError("Login rejected")
             raise ApiError("Levelgas reported an API error")
         return data.get("message")
 
@@ -79,7 +77,7 @@ class LevelgasClient:
             },
         )
         if not self._valid_token(token):
-            raise AuthError("Login did not return a session")
+            raise ApiError("Login did not return a session")
         self.session_token = {key: token[key] for key in ("userHash", "token")}
 
     async def _authenticated(self, path):
